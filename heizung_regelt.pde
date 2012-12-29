@@ -21,6 +21,8 @@ DeviceAddress kessel = { 0x10, 0x39, 0x6A, 0x9C, 0x01, 0x08, 0x00, 0x02 }; // Ma
 DeviceAddress vorlauf = { 0x10, 0x6D, 0x34, 0x9C, 0x01, 0x08, 0x00, 0xC7 }; // Marker one
 DeviceAddress ruecklauf = { 0x10, 0x02, 0x21, 0x9C, 0x01, 0x08, 0x00, 0x8E }; // Marker two
 
+
+
 // functions used 
 
 // function to print a device address
@@ -59,6 +61,15 @@ void printAll(void)
   Serial.println(getTemperature(vorlauf));
   Serial.print("Ruecklauf : "); // from Radiators
   Serial.println(getTemperature(ruecklauf));
+}
+
+void PrintTemp(float TempK, float TempV, float TempR) {
+  Serial.print("Kessel: ");
+  Serial.print(TempK);
+  Serial.print(" Vorlauf: ");
+  Serial.print(TempV);
+  Serial.print(" Ruecklauf: ");
+  Serial.println(TempR);
 }
 
 
@@ -114,7 +125,6 @@ void setup(void) {
     Serial.print("Ruecklauf Resolution: ");
     Serial.print(sensors.getResolution(ruecklauf), DEC); 
     Serial.println();
-  
 }
 
 
@@ -124,74 +134,84 @@ void loop() {
   float Tv = getTemperature(vorlauf); 
   float Tr = getTemperature(ruecklauf); 
   
-  if (Tk + 4 < VL)
+  PrintTemp(Tk, Tv, Tr);              // print DS1820 values
+  
+  
+  if (Tk + 4 < VL)                    // Tk Sensor is reporting incorrect Data, ugly fix
     { 
-      Serial.println("Kessel zu kalt"); // Boiler too cold
-      mixer(1,0);                       // open mixer Valve
+      Serial.println("Boiler too cold, waiting for ignition"); // Boiler too cold
+      mixer(1,0);                     // open mixer Valve
       delay(1000); 
       mixer(0,0);
-      delay(10000); // wait for ignition 
+      delay(10000);                   // wait for ignition 
     }
   else {
-      if ((Tv - VL) > 0) // too hot cool down !
+      if ((Tv - VL) > 0)              // too hot cool down !
       {
-        Serial.println("cool down");
-        if ((Tv - VL) > 10)        // way too hot, drive mixer valve down
+        Serial.print("cool down");
+        if ((Tv - VL) > 10)           // way too hot, drive mixer valve down
           {
+            Serial.println(" fast");
             mixer(0,1); 
-            delay(8000); 
+            delay(10000); 
             mixer(0,0);
           }
-        else if ((Tv - VL) > 5)   // too hot
+        else if ((Tv - VL) > 5)       // too hot
           {
+            Serial.println("");
             mixer(0,1);
-            delay(3000);
+            delay(5000);
             mixer(0,0);
           }
-        else if ((Tv - VL) > 1)  // a bit to warm
+        else if ((Tv - VL) > 0.75)    // a bit to warm
           {
+            Serial.println(" slow");
             mixer(0,1);
-            delay(1500);
+            delay(2500);
             mixer(0,0);
           }
         else 
           {
-            Serial.println(" Temp ok !");
+            Serial.println("\r\nTemp within upper hysteresis");
           }
             
       }
       else if ((Tv - VL < 0))
       {
-       Serial.println("heat up");
-       if ((Tv - VL) < -10)     // way too cold, drive mixer valve up
+       Serial.print("heat up");
+       if ((Tv - VL) < -10)           // way too cold, drive mixer valve up
           {
+            Serial.println(" fast");
             mixer(1,0); 
-            delay(8000); 
+            delay(10000); 
             mixer(0,0);
           }
         else if ((Tv - VL) < -5)
           {
+            Serial.println("");
             mixer(1,0);
-            delay(3000);
+            delay(5000);
             mixer(0,0);
           }
           
-         else if ((Tv -VL) < -1)
+         else if ((Tv -VL) < - 0.75)
           {
+            Serial.println(" slow");
             mixer(1,0);
-            delay(1500);
+            delay(2500);
             mixer(0,0);
           }
         else 
           {
-            Serial.println(" Temp ok !");
+            Serial.println("\r\nTemp within lower hysteresis");
           }
       }
       else {
         Serial.println(" Temp ok !");
       }
   }
-printAll();
-delay(10000); // wait, system is slow
-      
+
+delay(7000);                       // wait, system is reacting slow
+    
+   
 }
